@@ -3,7 +3,7 @@ package gossip
 import "testing"
 
 func TestParseLogLine(t *testing.T) {
-	line := "2023/05/05 16:03:42 [WARN] memberlist: Refuting"
+	line := "2023/05/05 16:03:42 [WARN] memberlist: Refuting something"
 
 	parsed, err := ParseLogLine(line)
 	if err != nil {
@@ -26,7 +26,7 @@ func TestParseLogLine(t *testing.T) {
 		t.Error("Invalid component")
 	}
 
-	if parsed.Message != "Refuting" {
+	if parsed.Message != "Refuting something" {
 		t.Error("Invalid message")
 	}
 }

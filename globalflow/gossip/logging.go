@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"io"
+	"strings"
 )
 
 type LogrusLogger struct {
@@ -36,29 +37,36 @@ type ParsedLog struct {
 
 // ParseLogLine parses a log line into a ParsedLog struct.
 func ParseLogLine(line string) (*ParsedLog, error) {
-	var date string
-	var time string
-	var level string
-	var component string
-	var message string
+	var components []string
 
-	_, err := fmt.Sscanf(line, "%s %s %s %s %s", &date, &time, &level, &component, &message)
-	if err != nil {
-		return nil, err
+	for {
+		i := strings.IndexRune(line, ' ')
+
+		substr := line[:i]
+		line = line[i+1:]
+
+		components = append(components, substr)
+
+		if len(line) == 0 {
+			break
+		}
+
+		if len(components) == 4 {
+			components = append(components, line)
+			break
+		}
 	}
 
-	// Trim the leading and trailing [] from the level
-	level = level[1 : len(level)-1]
-
-	// Trim the trailing : from the component
-	component = component[:len(component)-1]
+	if len(components) != 5 {
+		return nil, fmt.Errorf("invalid log line")
+	}
 
 	return &ParsedLog{
-		Date:      date,
-		Time:      time,
-		Level:     level,
-		Component: component,
-		Message:   message,
+		Date:      components[0],
+		Time:      components[1],
+		Level:     components[2][1 : len(components[2])-1],
+		Component: components[3][:len(components[3])-1],
+		Message:   components[4],
 	}, nil
 }
 

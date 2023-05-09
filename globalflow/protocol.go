@@ -1,17 +1,21 @@
 package globalflow
 
-import "encoding/json"
+import (
+	"context"
+	"encoding/json"
+	"github.com/sirupsen/logrus"
+	"nhooyr.io/websocket"
+)
 
 type MessageType string
 
 const (
-	MessageTypeHeartbeat   MessageType = "heartbeat"
-	MessageTypeRequestVote MessageType = "request_vote"
-	MessageTypeVodeGranted MessageType = "vote_granted"
+	MessageTypeCommand MessageType = "command"
 )
 
 type Message interface {
 	MessageType() MessageType
+	GetOriginator() string
 }
 
 type internalMessage struct {
@@ -19,34 +23,20 @@ type internalMessage struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
-type HeartbeatMessage struct {
-	NodeID string `json:"node_id"`
-	Term   int    `json:"term"`
+type CommandMessage struct {
+	Time       Time     `json:"clock"`
+	Command    string   `json:"command"`
+	Arguments  []string `json:"arguments"`
+	Originator string   `json:"originator"`
 }
 
-func (HeartbeatMessage) MessageType() MessageType {
-	return MessageTypeHeartbeat
+func (CommandMessage) MessageType() MessageType {
+	return MessageTypeCommand
 }
 
-type RequestVoteMessage struct {
-	NodeID string `json:"node_id"`
-	Term   int    `json:"term"`
+func (message CommandMessage) GetOriginator() string {
+	return message.Originator
 }
-
-func (RequestVoteMessage) MessageType() MessageType {
-	return MessageTypeRequestVote
-}
-
-type VoteGrantedMessage struct {
-	NodeID string `json:"node_id"`
-	Term   int    `json:"term"`
-}
-
-func (VoteGrantedMessage) MessageType() MessageType {
-	return MessageTypeVodeGranted
-}
-
-// {"type": "vote_granted", "payload": {"node_id": "Bar"}}
 
 // decodeMessage decodes a message from a byte slice.
 func decodeMessage(data []byte) (interface{}, error) {
@@ -56,22 +46,13 @@ func decodeMessage(data []byte) (interface{}, error) {
 	}
 
 	switch message.Type {
-	case MessageTypeHeartbeat:
-		return HeartbeatMessage{}, nil
-	case MessageTypeRequestVote:
-		var requestVote RequestVoteMessage
-		if err := json.Unmarshal(message.Payload, &requestVote); err != nil {
+	case MessageTypeCommand:
+		var command CommandMessage
+		if err := json.Unmarshal(message.Payload, &command); err != nil {
 			return nil, err
 		}
 
-		return requestVote, nil
-	case MessageTypeVodeGranted:
-		var voteGranted VoteGrantedMessage
-		if err := json.Unmarshal(message.Payload, &voteGranted); err != nil {
-			return nil, err
-		}
-
-		return voteGranted, nil
+		return command, nil
 	}
 
 	return nil, nil
@@ -90,4 +71,25 @@ func encodeMessage(message Message) ([]byte, error) {
 	internal.Payload = payload
 
 	return json.Marshal(internal)
+}
+
+func (server *Server) broadcast(message Message) error {
+	encoded, err := encodeMessage(message)
+	if err != nil {
+		return err
+	}
+
+	next := server.NextLocalNode()
+	if next != nil && next.NodeID() != message.GetOriginator() {
+		logrus.Debug("broadcasting to local node")
+
+		c, err := server.GetSocket(next)
+		if err == nil {
+			c.Write(context.Background(), websocket.MessageText, encoded)
+		} else {
+			logrus.Error(err)
+		}
+	}
+
+	return nil
 }

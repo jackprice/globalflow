@@ -1,0 +1,39 @@
+version: "3.1"
+services:
+  node0:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "6700:6700"
+    command:
+      - server
+      - --node-name=node0
+      - --node-port=6700
+  node1:
+    depends_on:
+      - node0
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "6701:6701"
+    command:
+      - server
+      - --node-name=node1
+      - --node-port=6701
+      - --node-peers=127.0.0.1:6700
+  node2:
+    depends_on:
+      - node0
+      - node1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "6702:670"
+    command:
+      - server
+      - --node-name=node2
+      - --node-port=6702
+      - --node-peers=127.0.0.1:6700,127.0.0.1:6701

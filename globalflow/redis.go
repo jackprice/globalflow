@@ -2,8 +2,9 @@ package globalflow
 
 import (
 	"github.com/tidwall/redcon"
-	bolt "go.etcd.io/bbolt"
+	"globalflow/globalflow/db"
 	"strings"
+	"time"
 )
 
 func (server *Server) Redis(conn redcon.Conn, cmd redcon.Command) {
@@ -19,22 +20,36 @@ func (server *Server) Redis(conn redcon.Conn, cmd redcon.Command) {
 
 		key := string(cmd.Args[1])
 
-		err := server.DB.View(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte("DATA"))
-			v := b.Get([]byte(key))
-
-			if v == nil {
-				conn.WriteNull()
-				return nil
-			}
-
-			conn.WriteString(string(v))
-
-			return nil
-		})
+		v, err := server.db.Get(db.Time(time.Now().UnixMilli()), key)
+		if db.IsErrorNotFound(err) {
+			conn.WriteNull()
+			return
+		}
 		if err != nil {
 			conn.WriteError("ERR " + err.Error())
 			return
 		}
+
+		conn.WriteString(v)
+
+		return
+
+	case "set":
+		if len(cmd.Args) != 3 {
+			conn.WriteError("ERR wrong number of arguments for '" + string(cmd.Args[0]) + "' command")
+			return
+		}
+
+		message := CommandMessage{
+			Command:    "set",
+			Arguments:  []string{string(cmd.Args[1]), string(cmd.Args[2])},
+			Time:       server.clock.Get(),
+			Originator: server.container.Configuration.NodeID,
+		}
+
+		server.processCommand(message)
+		server.broadcast(message)
+
+		conn.WriteString("OK")
 	}
 }

@@ -23,7 +23,9 @@ It's intended for low latency reads and high availability with probable eventual
 For ease of deployment across heterogeneous networks, GlobalFlow uses HTTP for all communication. Low-latency 
 communication is achieved over websockets.
 
-![Ring architecture](./ring-architecture.png)
+Globalflow is architected as a ring of rings. Each zone is a ring of nodes. Communication consistently flows in one direction.
+
+![Ring architecture](./docs/ring-architecture.jpg)
 
 ## Reliability
 

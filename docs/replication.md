@@ -16,4 +16,4 @@ When a node receives a write request, it writes the data to its local storage an
 1. Its first successor in the current availability zone
 2. Its first successor in the next availability zone
 
-![Ring architecture](./ring-architecture.png)
+![Ring architecture](./ring-architecture.jpg)

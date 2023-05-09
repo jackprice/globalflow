@@ -34,3 +34,5 @@ The following Redis commands are supported:
 
 - GET
 - SET
+- DEL
+- LPUSH

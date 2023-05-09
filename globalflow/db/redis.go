@@ -74,6 +74,67 @@ func (db *Database) Set(now time.Time, key string, value string, expiresAt Time)
 	return nil
 }
 
+// Delete deletes a value from the database.
+func (db *Database) Delete(key string) error {
+	err := db.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(BucketData))
+		if b == nil {
+			panic(fmt.Errorf("bucket %s not found", BucketData))
+		}
+
+		return b.Delete([]byte(key))
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LPush pushes a value to the head of a list.
+func (db *Database) LPush(key string, value string) error {
+	err := db.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(BucketData))
+		if b == nil {
+			panic(fmt.Errorf("bucket %s not found", BucketData))
+		}
+
+		v := b.Get([]byte(key))
+
+		var data Data
+
+		if v == nil {
+			data = Data{
+				Type:      DataTypeList,
+				ListValue: []string{value},
+			}
+		} else {
+			err := data.Decode(v)
+			if err != nil {
+				return err
+			}
+
+			if data.Type != DataTypeList {
+				return fmt.Errorf("wrong type")
+			}
+
+			data.ListValue = append(data.ListValue, value)
+		}
+
+		encoded, err := data.Encode()
+		if err != nil {
+			return err
+		}
+
+		return b.Put([]byte(key), encoded)
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 type ErrorNotFound struct {
 	Key string
 }

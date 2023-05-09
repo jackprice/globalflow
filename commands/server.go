@@ -15,6 +15,9 @@ var ServerCommand = &cli.Command{
 		&cli.StringFlag{
 			Name: "node-name",
 		},
+		&cli.StringFlag{
+			Name: "node-address",
+		},
 		&cli.IntFlag{
 			Name: "node-port",
 		},
@@ -38,6 +41,10 @@ var ServerCommand = &cli.Command{
 
 		if c.String("node-name") != "" {
 			container.Configuration.NodeID = c.String("node-name")
+		}
+
+		if c.String("node-address") != "" {
+			container.Configuration.NodeAddress = c.String("node-address")
 		}
 
 		if c.Int("node-port") != 0 {

@@ -97,7 +97,7 @@ func (server *Server) Run(ctx context.Context) error {
 		}
 	}()
 
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", server.container.Configuration.NodePort))
+	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", server.container.Configuration.NodePort))
 	if err != nil {
 		return err
 	}
@@ -178,8 +178,6 @@ func (server *Server) readSocket(c *websocket.Conn) {
 		}
 
 		if t == websocket.MessageText {
-			logrus.Infof("Received message: %s", msg)
-
 			decoded, err := decodeMessage(msg)
 			if err != nil {
 				logrus.WithError(err).Warn("failed to decode message")
@@ -189,7 +187,7 @@ func (server *Server) readSocket(c *websocket.Conn) {
 
 			switch v := decoded.(type) {
 			case CommandMessage:
-				server.handleCommand(v)
+				server.handleCommand(&v)
 
 			default:
 				logrus.Warnf("Unknown message type: %T", v)
@@ -198,15 +196,22 @@ func (server *Server) readSocket(c *websocket.Conn) {
 	}
 }
 
-func (server *Server) handleCommand(cmd CommandMessage) {
+func (server *Server) handleCommand(cmd *CommandMessage) {
 	server.clock.Set(cmd.Time)
 
 	server.processCommand(cmd)
 
-	server.broadcast(cmd)
+	cmd.DecrementTTL()
+
+	if cmd.GetTTL() > 0 {
+		err := server.broadcast(cmd)
+		if err != nil {
+			logrus.WithError(err).Warn("failed to broadcast command")
+		}
+	}
 }
 
-func (server *Server) processCommand(cmd CommandMessage) {
+func (server *Server) processCommand(cmd *CommandMessage) {
 	// TODO: Write to log
 
 	switch cmd.Command {
@@ -215,6 +220,13 @@ func (server *Server) processCommand(cmd CommandMessage) {
 
 		if err != nil {
 			logrus.WithError(err).Warn("failed to set key")
+		}
+
+	case "del":
+		err := server.db.Delete(cmd.Arguments[0])
+
+		if err != nil {
+			logrus.WithError(err).Warn("failed to delete key")
 		}
 
 	default:

@@ -1,6 +1,7 @@
 package globalflow
 
 import (
+	"fmt"
 	"github.com/tidwall/redcon"
 	"globalflow/globalflow/db"
 	"strings"
@@ -40,16 +41,57 @@ func (server *Server) Redis(conn redcon.Conn, cmd redcon.Command) {
 			return
 		}
 
-		message := CommandMessage{
-			Command:    "set",
-			Arguments:  []string{string(cmd.Args[1]), string(cmd.Args[2])},
-			Time:       server.clock.Get(),
-			Originator: server.container.Configuration.NodeID,
+		args := make([]string, len(cmd.Args)-1)
+
+		for i := 1; i < len(cmd.Args); i++ {
+			args[i-1] = string(cmd.Args[i])
 		}
 
+		message := server.NewCommandMessage(
+			string(cmd.Args[0]),
+			args,
+		)
+
 		server.processCommand(message)
-		server.broadcast(message)
+		err := server.broadcast(message)
+		if err != nil {
+			conn.WriteError("ERR " + err.Error())
+			return
+		}
 
 		conn.WriteString("OK")
+
+		return
+
+	case "del":
+		if len(cmd.Args) != 2 {
+			conn.WriteError("ERR wrong number of arguments for '" + string(cmd.Args[0]) + "' command")
+			return
+		}
+
+		args := make([]string, len(cmd.Args)-1)
+
+		for i := 1; i < len(cmd.Args); i++ {
+			args[i-1] = string(cmd.Args[i])
+		}
+
+		message := server.NewCommandMessage(
+			string(cmd.Args[0]),
+			args,
+		)
+
+		server.processCommand(message)
+		err := server.broadcast(message)
+		if err != nil {
+			conn.WriteError("ERR " + err.Error())
+			return
+		}
+
+		conn.WriteString("OK")
+
+		return
+
+	case "info":
+		conn.WriteBulkString(fmt.Sprintf("peers:%d\r\n", len(server.gossip.Members())))
 	}
 }

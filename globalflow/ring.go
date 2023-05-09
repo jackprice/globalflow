@@ -1,6 +1,7 @@
 package globalflow
 
 import (
+	"github.com/hashicorp/memberlist"
 	"github.com/spaolacci/murmur3"
 	"sort"
 )
@@ -39,6 +40,10 @@ func (server *Server) LocalNodes() []*Node {
 			continue
 		}
 
+		if node.node.State != memberlist.StateAlive {
+			continue
+		}
+
 		if metadata.Region == server.container.Configuration.NodeRegion {
 			nodes = append(nodes, node)
 		}
@@ -57,6 +62,10 @@ func (server *Server) RemoteNodes() []*Node {
 
 		metadata := node.Metadata()
 		if metadata == nil {
+			continue
+		}
+
+		if node.node.State != memberlist.StateAlive {
 			continue
 		}
 

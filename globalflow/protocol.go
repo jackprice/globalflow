@@ -3,8 +3,10 @@ package globalflow
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/sirupsen/logrus"
 	"nhooyr.io/websocket"
+	"strings"
 )
 
 type MessageType string
@@ -16,6 +18,8 @@ const (
 type Message interface {
 	MessageType() MessageType
 	GetOriginator() string
+	GetTTL() int
+	DecrementTTL()
 }
 
 type internalMessage struct {
@@ -28,13 +32,22 @@ type CommandMessage struct {
 	Command    string   `json:"command"`
 	Arguments  []string `json:"arguments"`
 	Originator string   `json:"originator"`
+	TTL        int      `json:"ttl"`
 }
 
 func (CommandMessage) MessageType() MessageType {
 	return MessageTypeCommand
 }
 
-func (message CommandMessage) GetOriginator() string {
+func (message *CommandMessage) GetTTL() int {
+	return message.TTL
+}
+
+func (message *CommandMessage) DecrementTTL() {
+	message.TTL--
+}
+
+func (message *CommandMessage) GetOriginator() string {
 	return message.Originator
 }
 
@@ -73,22 +86,60 @@ func encodeMessage(message Message) ([]byte, error) {
 	return json.Marshal(internal)
 }
 
+func (server *Server) NewCommandMessage(command string, arguments []string) *CommandMessage {
+	return &CommandMessage{
+		Time:       server.clock.Get(),
+		Command:    strings.ToLower(command),
+		Arguments:  arguments,
+		Originator: server.container.Configuration.NodeID,
+		TTL:        len(server.gossip.Members()) + 1,
+	}
+}
+
+// broadcast broadcasts a message to other nodes.
+// Returns an error if no nodes are available.
 func (server *Server) broadcast(message Message) error {
+	logrus.WithField("ttl", message.GetTTL()).Debugf("broadcasting message: %s", message)
+
 	encoded, err := encodeMessage(message)
 	if err != nil {
 		return err
 	}
 
+	count := 0
+
 	next := server.NextLocalNode()
-	if next != nil && next.NodeID() != message.GetOriginator() {
+	if next != nil {
 		logrus.Debug("broadcasting to local node")
 
 		c, err := server.GetSocket(next)
 		if err == nil {
-			c.Write(context.Background(), websocket.MessageText, encoded)
+			err := c.Write(context.Background(), websocket.MessageText, encoded)
+			if err == nil {
+				count++
+			}
 		} else {
 			logrus.Error(err)
 		}
+	}
+
+	nextRemote := server.NextRemoteNode()
+	if nextRemote != nil {
+		logrus.Debug("broadcasting to remote node")
+
+		c, err := server.GetSocket(nextRemote)
+		if err == nil {
+			err := c.Write(context.Background(), websocket.MessageText, encoded)
+			if err == nil {
+				count++
+			}
+		} else {
+			logrus.Error(err)
+		}
+	}
+
+	if count == 0 {
+		return fmt.Errorf("no nodes available")
 	}
 
 	return nil

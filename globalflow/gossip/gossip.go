@@ -58,9 +58,15 @@ func (g *Gossip) Start() error {
 
 	if len(g.configuration.NodePeers) > 0 {
 		go func() {
-			_, err := m.Join(g.configuration.NodePeers)
-			if err != nil {
-				logrus.WithError(err).Error("Failed to join cluster")
+			for {
+				_, err := m.Join(g.configuration.NodePeers)
+				if err != nil {
+					logrus.WithError(err).Error("Failed to join cluster")
+				} else {
+					break
+				}
+
+				time.Sleep(time.Second * 10)
 			}
 		}()
 	}

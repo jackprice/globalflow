@@ -58,10 +58,18 @@ func (t *Transport) DialAddressTimeout(addr memberlist.Address, timeout time.Dur
 
 func (t *Transport) FinalAdvertiseAddr(ip string, port int) (net.IP, int, error) {
 	if ip == "" {
-		ip = "127.0.0.1" // TODO: Replace with real IP
+		ip = "127.0.0.1"
 	}
 
-	return net.ParseIP("127.0.0.1"), port, nil
+	ips, err := net.LookupIP(ip)
+	if err != nil {
+		return nil, 0, err
+	}
+	if len(ips) > 0 {
+		ip = ips[0].String()
+	}
+
+	return net.ParseIP(ip), port, nil
 }
 
 func (t *Transport) WriteTo(b []byte, addr string) (time.Time, error) {

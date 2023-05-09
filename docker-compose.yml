@@ -1,16 +1,23 @@
 version: "3.1"
 services:
   node0:
+    networks:
+      - cont
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - "6700:6700"
+      - "63790:63790"
     command:
       - server
       - --node-name=node0
+      - --node-address=node0
       - --node-port=6700
+      - --redis-port=63790
   node1:
+    networks:
+      - cont
     depends_on:
       - node0
     build:
@@ -18,12 +25,17 @@ services:
       dockerfile: Dockerfile
     ports:
       - "6701:6701"
+      - "63791:63791"
     command:
       - server
       - --node-name=node1
+      - --node-address=node1
       - --node-port=6701
-      - --node-peers=127.0.0.1:6700
+      - --node-peers=node0:6700
+      - --redis-port=63791
   node2:
+    networks:
+      - cont
     depends_on:
       - node0
       - node1
@@ -31,9 +43,17 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "6702:670"
+      - "6702:6702"
+      - "63792:63792"
     command:
       - server
       - --node-name=node2
+      - --node-address=node2
       - --node-port=6702
-      - --node-peers=127.0.0.1:6700,127.0.0.1:6701
+      - --node-peers=node0:6700,node1:6701
+      - --redis-port=63792
+
+networks:
+  cont:
+    driver:  bridge
+    enable_ipv6: false

@@ -7,11 +7,13 @@ type Time int64
 
 const (
 	DataTypeString DataType = iota
+	DataTypeList
 )
 
 type Data struct {
 	Type        DataType `json:"type"`
 	StringValue string   `json:"stringValue"`
+	ListValue   []string `json:"listValue"`
 	ExpiresAt   Time     `json:"expiresAt"`
 }
 

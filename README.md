@@ -23,6 +23,8 @@ It's intended for low latency reads and high availability with probable eventual
 For ease of deployment across heterogeneous networks, GlobalFlow uses HTTP for all communication. Low-latency 
 communication is achieved over websockets.
 
+![Ring architecture](./ring-architecture.png)
+
 ## Reliability
 
 GlobalFlows reliability model is probabilistic rather than deterministic. When you write a value to the store, it

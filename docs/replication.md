@@ -15,3 +15,5 @@ nodes are available. The ring is used to coordinate the replication of data.
 When a node receives a write request, it writes the data to its local storage and then forwards the request to
 1. Its first successor in the current availability zone
 2. Its first successor in the next availability zone
+
+![Ring architecture](./ring-architecture.png)

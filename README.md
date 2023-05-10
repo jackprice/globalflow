@@ -2,7 +2,7 @@
 
 A _very_ experimental Redis-compatible globally distributed KV store written in Go. 
 
-It's intended for low latency reads and high availability with probable eventual consistency.
+It's intended for low latency reads and high availability with eventual consistency.
 
 ## Objectives
 
@@ -20,8 +20,8 @@ It's intended for low latency reads and high availability with probable eventual
 
 ## Communication
 
-For ease of deployment across heterogeneous networks, GlobalFlow uses HTTP for all communication. Low-latency 
-communication is achieved over websockets.
+For ease of deployment across heterogeneous networks, GlobalFlow uses HTTP for inter-region communication. Low-latency 
+intra-region communication is over TCP and UDP.
 
 Globalflow is architected as a ring of rings. Each zone is a ring of nodes. Communication consistently flows in one direction.
 

@@ -7,7 +7,8 @@ import (
 )
 
 type Delegate struct {
-	Metadata GossipMetadata
+	Metadata    GossipMetadata
+	MessageChan chan []byte
 }
 
 func (d *Delegate) NodeMeta(limit int) []byte {
@@ -24,7 +25,10 @@ func (d *Delegate) NodeMeta(limit int) []byte {
 }
 
 func (d *Delegate) NotifyMsg(bytes []byte) {
-	logrus.Info("Received message")
+	logrus.Debug("Received message")
+
+	// Copy the byte slice before sending it to the channel.
+	d.MessageChan <- append([]byte{}, bytes...)
 }
 
 func (d *Delegate) GetBroadcasts(overhead, limit int) [][]byte {

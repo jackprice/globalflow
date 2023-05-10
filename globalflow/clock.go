@@ -40,3 +40,23 @@ func (clock *LamportCLock) Set(time Time) {
 
 	clock.time++
 }
+
+// VectorClock contains an implementation of a vector clock.
+type VectorClock struct {
+	// time contains a map of node IDs to times.
+	time VectorTime
+
+	// Mutex is a mutex for Vectors.
+	mu sync.Mutex
+}
+
+type VectorTime map[string]Time
+
+// NewVectorClock creates a new vector clock.
+func NewVectorClock() *VectorClock {
+	return &VectorClock{
+		time: make(VectorTime),
+	}
+}
+
+// Get gets the current time.

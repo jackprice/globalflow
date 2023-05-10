@@ -97,7 +97,7 @@ func (server *Server) Run(ctx context.Context) error {
 		}
 	}()
 
-	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", server.container.Configuration.NodePort))
+	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", server.container.Configuration.NodePort+10))
 	if err != nil {
 		return err
 	}
@@ -161,11 +161,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	logrus.WithField("addr", r.RemoteAddr).WithField("protocol", c.Subprotocol()).Debug("Accepted websocket connection")
 
-	if c.Subprotocol() == "stream" || c.Subprotocol() == "packet" {
-		server.gossip.HandleConnection(c, r)
-	} else {
-		server.readSocket(c)
-	}
+	server.readSocket(c)
 }
 
 func (server *Server) readSocket(c *websocket.Conn) {

@@ -112,12 +112,10 @@ func (server *Server) broadcast(message Message) error {
 	if next != nil {
 		logrus.Debug("broadcasting to local node")
 
-		c, err := server.GetSocket(next)
+		err := server.gossip.SendReliable(next.node, encoded)
+
 		if err == nil {
-			err := c.Write(context.Background(), websocket.MessageText, encoded)
-			if err == nil {
-				count++
-			}
+			count++
 		} else {
 			logrus.Error(err)
 		}

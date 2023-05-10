@@ -12,7 +12,6 @@ services:
     command:
       - server
       - --node-name=node0
-      - --node-address=node0
       - --node-port=6700
       - --redis-port=63790
   node1:
@@ -29,7 +28,6 @@ services:
     command:
       - server
       - --node-name=node1
-      - --node-address=node1
       - --node-port=6701
       - --node-peers=node0:6700
       - --redis-port=63791
@@ -48,7 +46,6 @@ services:
     command:
       - server
       - --node-name=node2
-      - --node-address=node2
       - --node-port=6702
       - --node-peers=node0:6700,node1:6701
       - --redis-port=63792

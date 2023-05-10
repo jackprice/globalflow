@@ -1,31 +1,26 @@
 package gossip
 
 import (
-	"fmt"
 	"github.com/hashicorp/memberlist"
 	"github.com/sirupsen/logrus"
 	"globalflow/config"
-	"net/http"
-	"nhooyr.io/websocket"
 	"time"
 )
 
 // Gossip is a gossip protocol.
 type Gossip struct {
-	transport     *Transport
 	configuration *config.Configuration
 	m             *memberlist.Memberlist
 	events        *EventDelegate
+	messageCh     chan []byte
 }
 
 // NewGossip creates a new gossip protocol.
 func NewGossip(cfg *config.Configuration) (*Gossip, error) {
-	transport := NewTransport(cfg.NodeID, fmt.Sprintf("%s:%d", cfg.NodeAddress, cfg.NodePort))
-
 	return &Gossip{
-		transport:     transport,
 		configuration: cfg,
 		events:        NewEventDelegate(),
+		messageCh:     make(chan []byte, 128),
 	}, nil
 }
 
@@ -33,13 +28,12 @@ func NewGossip(cfg *config.Configuration) (*Gossip, error) {
 func (g *Gossip) Start() error {
 	logrus.Debug("Starting gossip server")
 
-	cfg := memberlist.DefaultWANConfig()
+	cfg := memberlist.DefaultLANConfig()
 
 	cfg.Name = g.configuration.NodeID
 	cfg.BindPort = g.configuration.NodePort
-	cfg.AdvertiseAddr = g.configuration.NodeAddress
+	//cfg.AdvertiseAddr = g.configuration.NodeAddress
 	cfg.AdvertisePort = g.configuration.NodePort
-	cfg.Transport = g.transport
 	cfg.LogOutput = &LogrusLogger{}
 	cfg.Delegate = &Delegate{
 		Metadata: GossipMetadata{
@@ -47,6 +41,7 @@ func (g *Gossip) Start() error {
 			Zone:     g.configuration.NodeZone,
 			Hostname: g.configuration.NodeHostname,
 		},
+		MessageChan: g.messageCh,
 	}
 	cfg.Events = g.events
 
@@ -85,15 +80,25 @@ func (g *Gossip) Close() (err error) {
 	return
 }
 
-// HandleConnection handles a websocket connection.
-// This should be called by the server after it has determined a websocket connection is destined for the gossip protocol.
-func (g *Gossip) HandleConnection(conn *websocket.Conn, r *http.Request) {
-	logrus.Tracef("Handling connection")
-
-	g.transport.handleConnection(conn, r)
-}
-
 // Members returns the members in the cluster. This can include the local node, and suspect nodes.
 func (g *Gossip) Members() []*memberlist.Node {
 	return g.m.Members()
+}
+
+// MessageCh returns a channel that can be listened to to receive messages from the cluster.
+func (g *Gossip) MessageCh() chan []byte {
+	return g.messageCh
+}
+
+// SendReliable reliably sends a message to a node.
+func (g *Gossip) SendReliable(to *memberlist.Node, msg []byte) (err error) {
+	// Retry sending the message 3 times.
+	for i := 0; i < 3; i++ {
+		err := g.m.SendReliable(to, msg)
+		if err == nil {
+			return nil
+		}
+	}
+
+	return err
 }
